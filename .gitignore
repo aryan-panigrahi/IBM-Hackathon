@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+.env
+venv/
+*.egg-info/
+dist/
+build/
+temp_report.json
+validation_report.json
+test_results.json
+bandit_results.json
+logs/*.jsonl
+logs/*_full.json
+logs/*_docket.md
+.secrets.baseline
+.DS_Store

@@ -1,0 +1,21 @@
+rules:
+  - id: POL-GDPR-01
+    name: No Plaintext PII in Logs
+    severity: HIGH
+    description: User email addresses must not be logged without mask_email() wrapping.
+    pattern: "logger\\.info\\(.*user\\.email"
+    action: wrap_mask_email
+
+  - id: POL-SEC-001
+    name: No Hardcoded Secrets
+    severity: HIGH
+    description: API keys and passwords must not be committed as string literals.
+    pattern: 'API_KEY\s*=\s*["\']sk-[^"\']+["\']'
+    action: replace_with_getenv
+
+  - id: POL-RES-001
+    name: Bounded Retry Loops
+    severity: HIGH
+    description: Operational retry loops must have a finite iteration bound and backoff.
+    pattern: "while not success:"
+    action: convert_bounded_for_loop
