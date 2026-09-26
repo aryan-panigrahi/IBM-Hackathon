@@ -182,9 +182,11 @@ def pick_target(root: Path):
     choice = input("Enter 1 or 2 [default: 1]: ").strip() or "1"
 
     if choice == "2":
-        custom = input("Enter the full path to your repository: ").strip()
+        custom = input("Enter the full path to your repository: ").strip().strip("'\"")
         if not Path(custom).exists():
-            fail(f"Path does not exist: {custom}")
+            fail(f"Path does not exist: '{custom}'")
+            warn("Tip: type the path without surrounding quotes.")
+            warn("     You can drag the folder into this window instead.")
             input("Press Enter to exit...")
             sys.exit(1)
         return custom
