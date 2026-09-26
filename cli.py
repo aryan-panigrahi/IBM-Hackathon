@@ -96,6 +96,7 @@ def investigate(
     agent: str = typer.Option(None, "--agent", "-a", help="AI backend: lmstudio | bob | ollama | openai | groq"),
     model: str = typer.Option(None, "--model", "-m", help="Model name (e.g. prism-bonsai-27b, bob-2.0, gpt-4o)"),
     agent_url: str = typer.Option(None, "--agent-url", help="Override the backend API URL"),
+    non_interactive: bool = typer.Option(False, "--non-interactive", help="Skip human approval prompt (for CI/CD use)"),
 ):
     """⚖️  Investigate a repository for functional regressions and policy violations."""
 
@@ -176,18 +177,22 @@ def investigate(
     console.print(f"  AI Engine: [cyan]{display_backend.upper()} / {display_model}[/cyan]")
     console.print()
 
-    approved = typer.confirm("Do you approve this remediation?")
-
-    if approved:
-        console.print(Panel(
-            "[bold green]✅ VERDICT APPROVED\nPatch accepted. Case closed.[/bold green]",
-            border_style="green",
-        ))
+    if non_interactive:
+        approved = result.get("verdict", "").startswith("GUILTY")
+        status = "AUTO-APPROVED (CI mode)" if approved else "AUTO-REJECTED (remediation failed)"
+        console.print(Panel(f"[bold yellow]🤖 {status}[/bold yellow]", border_style="yellow"))
     else:
-        console.print(Panel(
-            "[bold red]❌ VERDICT REJECTED\nPatch discarded. Escalating to human engineer.[/bold red]",
-            border_style="red",
-        ))
+        approved = typer.confirm("Do you approve this remediation?")
+        if approved:
+            console.print(Panel(
+                "[bold green]✅ VERDICT APPROVED\nPatch accepted. Case closed.[/bold green]",
+                border_style="green",
+            ))
+        else:
+            console.print(Panel(
+                "[bold red]❌ VERDICT REJECTED\nPatch discarded. Escalating to human engineer.[/bold red]",
+                border_style="red",
+            ))
 
     tribunal.save_audit_log(case, result, approved)
     console.print(f"\n[dim]Audit log saved to: logs/{case.case_id}_full.json[/dim]")

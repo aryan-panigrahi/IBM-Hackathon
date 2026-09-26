@@ -29,8 +29,9 @@ class EvidenceCollector:
     def run_tests(self) -> dict:
         """Run pytest and capture structured results."""
         report_path = os.path.join(self.repo_path, "temp_report.json")
+        tests_dir = os.path.join(self.repo_path, "tests")
         result = subprocess.run(
-            ["pytest", "tests/", "--json-report", f"--json-report-file={report_path}", "--tb=short"],
+            ["pytest", tests_dir, "--json-report", f"--json-report-file={report_path}", "--tb=short"],
             capture_output=True,
             text=True,
             cwd=self.repo_path,
@@ -67,15 +68,15 @@ class EvidenceCollector:
             if match:
                 failures.append({
                     "test_id": f"{match.group(1)}::{match.group(2)}",
-                    "file": match.group(1),
-                    "line": 43,
+                    "file": os.path.join(self.repo_path, match.group(1)),
+                    "line": None,
                     "message": match.group(3),
                 })
             else:
                 failures.append({
-                    "test_id": "test_failure",
-                    "file": "payment_gateway.py",
-                    "line": 43,
+                    "test_id": "unknown_failure",
+                    "file": None,
+                    "line": None,
                     "message": result.stderr or result.stdout,
                 })
 

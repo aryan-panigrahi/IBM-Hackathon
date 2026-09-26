@@ -47,8 +47,9 @@ class DualValidator:
     def run_functional_tests(self) -> dict:
         """Run pytest and parse structured results."""
         report_path = os.path.join(self.repo_path, "validation_report.json")
+        tests_dir = os.path.join(self.repo_path, "tests")
         result = subprocess.run(
-            ["pytest", "tests/", "--json-report", f"--json-report-file={report_path}", "--tb=short"],
+            ["pytest", tests_dir, "--json-report", f"--json-report-file={report_path}", "--tb=short"],
             capture_output=True,
             text=True,
             cwd=self.repo_path,
@@ -74,9 +75,9 @@ class DualValidator:
         passed = result.returncode == 0
         return {
             "passed": passed,
-            "total": 5 if passed else 1,
+            "total": 0,
             "failed": 0 if passed else 1,
-            "details": [] if passed else ["tests/test_checkout.py::test_retry_payment_timeout"],
+            "details": [],
         }
 
     def run_policy_scan(self) -> dict:

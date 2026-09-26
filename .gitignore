@@ -1,16 +1,42 @@
+# Python
 __pycache__/
 *.pyc
-.env
-venv/
+*.pyo
+*.pyd
 *.egg-info/
 dist/
 build/
+.eggs/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Environment / secrets
+.env
+.env.local
+
+# Generated test & scan reports (temp files)
 temp_report.json
 validation_report.json
 test_results.json
 bandit_results.json
+mcp_test_report.json
+.secrets.baseline
+.bob_temp.patch
+
+# Audit logs (generated at runtime — not source)
 logs/*.jsonl
 logs/*_full.json
 logs/*_docket.md
-.secrets.baseline
+
+# OS
 .DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

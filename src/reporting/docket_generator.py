@@ -106,6 +106,8 @@ class DocketGenerator:
         return template.render(data)
 
     def save(self, docket_text: str, output_path: str):
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        parent = os.path.dirname(output_path)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(docket_text)
