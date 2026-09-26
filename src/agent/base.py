@@ -2,7 +2,7 @@
 Agent Backend Base Class
 ========================
 All AI backends (LM Studio, Bob 2.0, OpenAI, Ollama, etc.) implement this interface.
-The Tribunal doesn't care which model is running — it just calls .investigate().
+Arbiter doesn't care which model is running — it just calls .investigate().
 """
 
 from abc import ABC, abstractmethod
@@ -54,7 +54,7 @@ class AgentBackend(ABC):
         pass
 
     def _build_system_prompt(self) -> str:
-        return """You are the Forensic Compliance Arbiter for The Governance Tribunal — a senior DevSecOps engineer with 20 years of experience.
+        return """You are the Forensic Compliance Arbiter for Arbiter — a senior DevSecOps engineer with 20 years of experience.
 
 Your job is to investigate code defects and policy violations, generate surgical patches, and produce structured JSON reports.
 

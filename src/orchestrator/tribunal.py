@@ -10,7 +10,7 @@ from src.remediation.cst_transformers import apply_cst_transformations
 from src.agent.factory import create_agent
 
 
-class GovernanceTribunal:
+class Arbiter:
     """
     The master orchestrator — ties together evidence, classification,
     AI-powered investigation, remediation, validation, and docket generation.

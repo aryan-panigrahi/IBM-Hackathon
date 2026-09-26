@@ -1,4 +1,4 @@
-# ⚖️ The Governance Tribunal
+# ⚖️ Arbiter
 ### IBM Bob 2.0 Hackathon — Forensic Compliance & Regression Arbiter
 
 > **One agentic loop that simultaneously finds, fixes, and validates every functional regression *and* policy violation in your codebase — then issues an immutable, auditable verdict.**
@@ -15,7 +15,7 @@ No existing tool treats these as the same class of problem.
 
 ## Solution
 
-The Governance Tribunal connects **IBM Bob 2.0** (Agent Mode) to a **Dual-Validation Engine** that enforces an inviolable rule:
+**Arbiter** connects **IBM Bob 2.0** (Agent Mode) to a **Dual-Validation Engine** that enforces an inviolable rule:
 
 > A patch is only accepted when it passes **both** the full test suite **and** all policy scanners simultaneously.
 
@@ -34,8 +34,8 @@ Bob doesn't just autocomplete — it acts as a Forensic Investigator and Complia
 | **Self-Correction Loop** | Validation errors fed back to the agent for up to N retry attempts |
 | **Human Approval Gate** | HIGH severity or low confidence (<0.75) requires explicit sign-off |
 | **Immutable Audit Ledger** | Append-only JSONL + full case JSON for compliance teams |
-| **Tribunal Docket** | Jinja2 Markdown verdict report with evidence, patch diff, and audit trail |
-| **Bob MCP Integration** | Custom MCP server exposes Tribunal tools directly to IBM Bob 2.0 |
+| **Arbiter Docket** | Jinja2 Markdown verdict report with evidence, patch diff, and audit trail |
+| **Bob MCP Integration** | Custom MCP server exposes Arbiter tools directly to IBM Bob 2.0 |
 
 ---
 
@@ -43,12 +43,12 @@ Bob doesn't just autocomplete — it acts as a Forensic Investigator and Complia
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    THE GOVERNANCE TRIBUNAL                   │
+│                         ARBITER                             │
 │                                                             │
 │  CLI / launch.py                                            │
 │       │                                                     │
 │       ▼                                                     │
-│  GovernanceTribunal (src/orchestrator/tribunal.py)          │
+│  Arbiter (src/orchestrator/tribunal.py)                     │
 │  ┌──────────────────────────────────────────────────────┐   │
 │  │ Phase 1: EvidenceCollector                           │   │
 │  │   pytest · detect-secrets · PII scan · git blame     │   │
@@ -85,7 +85,7 @@ Bob doesn't just autocomplete — it acts as a Forensic Investigator and Complia
 | **Code Repair** | LibCST (lossless CST transforms) + unified diff |
 | **Scanners** | pytest-json-report · detect-secrets · Bandit SAST · custom PII regex |
 | **CLI** | Typer + Rich |
-| **Templating** | Jinja2 (Tribunal Docket) |
+| **Templating** | Jinja2 (Arbiter Docket) |
 | **Git Integration** | GitPython |
 
 ---
@@ -108,7 +108,7 @@ IBM Hackathon/
 │   │   ├── factory.py            ← Backend factory (reads .env)
 │   │   └── openai_compatible.py  ← Universal OpenAI-compatible adapter
 │   ├── orchestrator/
-│   │   ├── tribunal.py           ← Master orchestrator
+│   │   ├── tribunal.py           ← Master orchestrator (Arbiter class)
 │   │   ├── case_manager.py       ← Case data model + state machine
 │   │   └── classifier.py        ← Case type, severity, confidence scoring
 │   ├── evidence/
@@ -120,7 +120,7 @@ IBM Hackathon/
 │   │   ├── patch_generator.py    ← Unified diff generator
 │   │   └── patch_applier.py      ← git apply with rollback support
 │   ├── reporting/
-│   │   └── docket_generator.py   ← Tribunal Docket renderer
+│   │   └── docket_generator.py   ← Arbiter Docket renderer
 │   ├── ledger/
 │   │   └── audit_ledger.py       ← Append-only JSONL audit log
 │   ├── sandbox/
@@ -129,7 +129,7 @@ IBM Hackathon/
 │       └── policy_engine.py      ← YAML policy rule loader & evaluator
 │
 ├── mcp_server/
-│   └── tribunal_mcp_server.py    ← MCP server — exposes 4 tools to Bob
+│   └── arbiter_mcp_server.py     ← MCP server — exposes 4 tools to Bob
 │
 ├── .bob/
 │   └── mcp.json                  ← Registers the MCP server with Bob
@@ -147,7 +147,7 @@ IBM Hackathon/
 │   └── policies.yaml             ← Machine-readable policy rules
 │
 ├── templates/
-│   └── docket.md.j2              ← Tribunal Docket Jinja2 template
+│   └── docket.md.j2              ← Arbiter Docket Jinja2 template
 │
 └── logs/                         ← Auto-generated at runtime (gitignored)
 ```
@@ -246,11 +246,11 @@ python cli.py backends
 After starting an investigation you will see five phases in the terminal:
 
 ```
-⚖️  THE GOVERNANCE TRIBUNAL  ⚖️
+⚖️  ARBITER  ⚖️
 Forensic Compliance & Regression Arbiter
 AI Engine: LMSTUDIO / prism-bonsai-27b
 
-📋 Phase 1: Collecting Evidence (The Subpoena)...
+📋 Phase 1: Collecting Evidence...
    Evidence Summary table — tests, secrets, PII, policies loaded
 
 🔍 Phase 2: Classifying Case...
@@ -259,7 +259,7 @@ AI Engine: LMSTUDIO / prism-bonsai-27b
 ⚖️  Phase 3: LMSTUDIO Investigating & Remediating...
    Agentic loop: investigate → patch → validate → iterate
 
-📄 Phase 4: Generating Tribunal Docket...
+📄 Phase 4: Generating Arbiter Docket...
    Full docket printed to terminal
 
 👤 Phase 5: Human Approval Required
@@ -267,13 +267,13 @@ AI Engine: LMSTUDIO / prism-bonsai-27b
    Do you approve this remediation? [y/N]
 ```
 
-The Tribunal Docket and full audit log are saved to `logs/`.
+The Arbiter Docket and full audit log are saved to `logs/`.
 
 ---
 
 ## The Demo Case
 
-`demo_repo/` contains **3 intentional defects** that the Tribunal is designed to catch and fix:
+`demo_repo/` contains **3 intentional defects** that Arbiter is designed to catch and fix:
 
 | # | Defect | File | Type |
 |:--|:--|:--|:--|
@@ -281,7 +281,7 @@ The Tribunal Docket and full audit log are saved to `logs/`.
 | 2 | `logger.info(f"Processing for {user.email}")` — PII in plain text | `payment_gateway.py` | Privacy Violation |
 | 3 | `API_KEY = "sk-abc123xyz..."` — hardcoded credential | `config.py` | Security Violation |
 
-The `test_retry_payment_timeout` test **intentionally fails** on the broken code. Once the Tribunal patches `payment_gateway.py`, all 5 tests pass and all 3 policy scanners return clean.
+The `test_retry_payment_timeout` test **intentionally fails** on the broken code. Once Arbiter patches `payment_gateway.py`, all 5 tests pass and all 3 policy scanners return clean.
 
 ---
 
@@ -320,7 +320,7 @@ pip install mcp>=1.0   # already in requirements.txt
 
 ## CI/CD Deployment
 
-A GitHub Actions workflow is included at `.github/workflows/tribunal.yml`. It triggers on every PR and push to `main`, runs the full investigation in `--non-interactive` mode, and uploads the Tribunal Docket as a downloadable artifact.
+A GitHub Actions workflow is included at `.github/workflows/arbiter.yml`. It triggers on every PR and push to `main`, runs the full investigation in `--non-interactive` mode, and uploads the Arbiter Docket as a downloadable artifact.
 
 ```yaml
 # Trigger on any push or PR
@@ -443,7 +443,7 @@ Maximum achievable confidence score: **1.0** (all signals present).
 
 ### Phase 3 — Agentic Remediation Loop
 
-This is the core self-correcting loop in `GovernanceTribunal.run_remediation_loop()`.
+This is the core self-correcting loop in `Arbiter.run_remediation_loop()`.
 
 ```
 FOR attempt in range(max_retries):              ← default: 2 retries

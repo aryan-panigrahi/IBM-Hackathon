@@ -1,6 +1,6 @@
 """
-The Governance Tribunal — Cross-Platform Launcher
-==================================================
+Arbiter — Cross-Platform Launcher
+==================================
 Called by launch.command (Mac) and launch.bat (Windows).
 Handles: Python check, venv setup, dependency install, agent health, then launches the CLI.
 """
@@ -231,9 +231,9 @@ def pick_agent_override():
     return backend, model, url
 
 
-def launch_tribunal(python_bin: Path, repo_root: Path, target: str, backend, model, url):
+def launch_arbiter(python_bin: Path, repo_root: Path, target: str, backend, model, url):
     separator()
-    print(f"\n{C.RED}{C.BOLD}🚀 Launching The Governance Tribunal...{C.RESET}\n")
+    print(f"\n{C.RED}{C.BOLD}🚀 Launching Arbiter...{C.RESET}\n")
 
     cmd = [str(python_bin), "cli.py", "investigate", target]
     if backend:
@@ -268,10 +268,10 @@ def main():
     target = pick_target(root)
     agent_b, agent_m, agent_url = pick_agent_override()
 
-    launch_tribunal(python_bin, root, target, agent_b, agent_m, agent_url)
+    launch_arbiter(python_bin, root, target, agent_b, agent_m, agent_url)
 
     separator()
-    print(f"\n{C.GREEN}{C.BOLD}✅ Tribunal session complete.{C.RESET}")
+    print(f"\n{C.GREEN}{C.BOLD}✅ Arbiter session complete.{C.RESET}")
     print(f"{C.DIM}Audit logs saved in: {root / 'logs'}{C.RESET}\n")
 
     if IS_WINDOWS:

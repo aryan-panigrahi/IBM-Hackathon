@@ -1,4 +1,4 @@
-"""The Governance Tribunal — CLI Entry Point.
+"""Arbiter — CLI Entry Point.
 
 Usage:
     # Use whatever backend is set in .env (default: LM Studio + Prism Bonsai 27B)
@@ -28,12 +28,12 @@ from rich.table import Table
 from rich.text import Text
 from rich import box
 
-from src.orchestrator.tribunal import GovernanceTribunal
+from src.orchestrator.tribunal import Arbiter
 from src.agent.factory import list_supported_backends
 
 app = typer.Typer(
-    name="tribunal",
-    help="⚖️  The Governance Tribunal — Forensic Compliance & Regression Arbiter",
+    name="arbiter",
+    help="⚖️  Arbiter — Forensic Compliance & Regression Arbiter",
     add_completion=False,
 )
 console = Console()
@@ -41,7 +41,7 @@ console = Console()
 
 def print_banner(backend: str, model: str):
     banner = Text()
-    banner.append("⚖️  THE GOVERNANCE TRIBUNAL  ⚖️\n", style="bold red")
+    banner.append("⚖️  ARBITER  ⚖️\n", style="bold red")
     banner.append("Forensic Compliance & Regression Arbiter\n", style="dim")
     banner.append(f"AI Engine: {backend.upper()} / {model}", style="italic cyan")
     console.print(Panel(banner, border_style="red", box=box.DOUBLE))
@@ -112,7 +112,7 @@ def investigate(
 
     # ── Health check the AI agent ──────────────────────────────────────────
     console.print(f"[dim]🔌 Connecting to {display_backend.upper()} ({display_model})...[/dim]")
-    tribunal = GovernanceTribunal(
+    arbiter = Arbiter(
         repo_path=repo_path,
         policy_dir=policy_dir,
         template_dir=template_dir,
@@ -123,24 +123,24 @@ def investigate(
         agent_url=agent_url,
     )
 
-    if tribunal.agent.health_check():
+    if arbiter.agent.health_check():
         console.print(f"[green]✅ {display_backend.upper()} is online — {display_model} ready.[/green]\n")
     else:
         console.print(
             f"[yellow]⚠️  {display_backend.upper()} is not reachable at "
-            f"{tribunal.agent.config.base_url}\n"
+            f"{arbiter.agent.config.base_url}\n"
             f"   Continuing with scripted fallback patch...[/yellow]\n"
         )
 
     # ── Phase 1: Collect Evidence ──────────────────────────────────────────
-    console.print("[bold yellow]📋 Phase 1: Collecting Evidence (The Subpoena)...[/bold yellow]")
-    evidence = tribunal.collect_evidence()
+    console.print("[bold yellow]📋 Phase 1: Collecting Evidence...[/bold yellow]")
+    evidence = arbiter.collect_evidence()
     print_evidence_table(evidence)
     console.print()
 
     # ── Phase 2: Classify Case ─────────────────────────────────────────────
     console.print("[bold yellow]🔍 Phase 2: Classifying Case...[/bold yellow]")
-    case = tribunal.classify(evidence)
+    case = arbiter.classify(evidence)
     print_case_info(case)
     console.print()
 
@@ -155,16 +155,16 @@ def investigate(
     console.print(f"[bold yellow]⚖️  Phase 3: {display_backend.upper()} ({display_model}) Investigating...[/bold yellow]")
     console.print("[dim]  Running agentic loop: investigate → patch → validate → iterate[/dim]\n")
 
-    result = tribunal.run_remediation_loop(case)
+    result = arbiter.run_remediation_loop(case)
 
-    # ── Phase 4: Generate Tribunal Docket ─────────────────────────────────
-    console.print("[bold yellow]📄 Phase 4: Generating Tribunal Docket...[/bold yellow]")
-    docket = tribunal.generate_docket(case, result)
+    # ── Phase 4: Generate Arbiter Docket ──────────────────────────────────
+    console.print("[bold yellow]📄 Phase 4: Generating Arbiter Docket...[/bold yellow]")
+    docket = arbiter.generate_docket(case, result)
     console.print()
 
     console.print(Panel(
         docket,
-        title="⚖️  TRIBUNAL DOCKET",
+        title="⚖️  ARBITER DOCKET",
         border_style="bold red",
         box=box.DOUBLE,
     ))
@@ -194,7 +194,7 @@ def investigate(
                 border_style="red",
             ))
 
-    tribunal.save_audit_log(case, result, approved)
+    arbiter.save_audit_log(case, result, approved)
     console.print(f"\n[dim]Audit log saved to: logs/{case.case_id}_full.json[/dim]")
     console.print(f"[dim]Docket saved to:    logs/{case.case_id}_docket.md[/dim]")
 
