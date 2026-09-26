@@ -29,9 +29,11 @@ jobs:
 
       - name: Run The Governance Tribunal
         # --non-interactive skips the Y/N prompt; CI auto-approves on success
+        # repo_path points to the checked-out repo on the runner's disk.
+        # Change ./demo_repo to ${{ github.workspace }} to audit the repo itself.
         run: |
           cd governance-tribunal
-          python cli.py investigate ./demo_repo --max-retries 2
+          python cli.py investigate ./demo_repo --max-retries 2 --non-interactive
         env:
           # Secrets are injected from GitHub repository secrets — never hardcoded
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
