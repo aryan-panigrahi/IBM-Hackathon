@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.env
+venv/
+*.egg-info/
+dist/
+build/
+temp_report.json
+validation_report.json
+logs/*.jsonl
+logs/*_full.json
+logs/*_docket.md
+.secrets.baseline

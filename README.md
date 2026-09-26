@@ -1,20 +1,23 @@
-# 🏛️ The Governance Tribunal
-### IBM Bob 2.0 Hackathon 2026 — Forensic Compliance & Regression Arbiter
+# ⚖️ The Governance Tribunal
+### IBM Bob 2.0 Hackathon — Forensic Compliance & Regression Arbiter
+
+> Treating functional bugs and policy violations as the **exact same class of forensic problem** — investigated, patched, and validated by IBM Bob 2.0 in a single agentic loop.
 
 ---
 
 ## What It Does
 
-The Governance Tribunal is an **agentic DevSecOps system** powered by **IBM Bob 2.0** that automatically detects, investigates, and remediates code defects before they reach production. It combines:
+Most CI/CD pipelines run tests in one silo and security scanners in another. Developers are left manually cross-referencing pytest tracebacks, `git blame` output, and policy documentation to figure out what broke and whether the fix is safe. When they rush, they introduce new violations (e.g. logging an email to debug a crash).
 
-- **Functional regression detection** (pytest + structured failure analysis)
-- **Policy violation scanning** (PII logging, hardcoded secrets via `detect-secrets` + Bandit SAST)
-- **Forensic root cause tracing** (git blame → culprit commit identification)
-- **Surgical code repair** (LibCST AST transformers for lossless patching)
-- **Dual-validation** (tests + policy must both pass)
-- **Human-in-the-loop approval gate** before any merge
-- **Immutable audit ledger** (JSONL + full case JSON)
-- **Tribunal Docket** (Jinja2 Markdown verdict report)
+**The Governance Tribunal collapses all of that into a single agentic loop:**
+
+1. **Collects Evidence** — runs pytest, `detect-secrets`, a PII regex scanner, and `git blame` on the target repo.
+2. **Classifies the Case** — determines whether the defect is Functional, Policy, or Combined, and assigns a severity.
+3. **Generates Hypotheses** — correlates git history with failures to identify the culprit commit.
+4. **Bob Patches** — IBM Bob 2.0 (via MCP tools) reads the failures and policies, then writes a fix.
+5. **Dual Validates** — the patch must pass **both** the test suite and all policy scanners before being accepted. If either fails, Bob self-corrects and retries.
+6. **Issues a Tribunal Docket** — a structured Markdown verdict report with charges, evidence, patch summary, and audit trail.
+7. **Human Approval Gate** — high-severity or low-confidence fixes require explicit Y/N sign-off before any code is merged.
 
 ---
 
@@ -22,77 +25,89 @@ The Governance Tribunal is an **agentic DevSecOps system** powered by **IBM Bob 
 
 ```
 IBM Hackathon/
-├── cli.py                          ← CLI entry point
-├── requirements.txt
-├── .env.example
-├── .gitignore
-├── .bobignore
 │
-├── src/
-│   ├── orchestrator/
-│   │   ├── case_manager.py         ← Case state machine & data model
-│   │   ├── classifier.py           ← Case type & severity classifier
-│   │   └── tribunal.py             ← Master orchestrator (GovernanceTribunal)
-│   ├── evidence/
-│   │   └── collector.py            ← pytest, detect-secrets, PII scan, git blame
-│   ├── validation/
-│   │   └── dual_validator.py       ← AST syntax + pytest + policy + Bandit
-│   ├── remediation/
-│   │   ├── cst_transformers.py     ← LibCST transformers (mask_email, getenv)
-│   │   ├── patch_generator.py      ← Unified diff generator
-│   │   └── patch_applier.py        ← git apply with rollback support
-│   ├── reporting/
-│   │   └── docket_generator.py     ← Jinja2 Tribunal Docket renderer
-│   ├── ledger/
-│   │   └── audit_ledger.py         ← Append-only JSONL audit log
-│   ├── sandbox/
-│   │   └── runner.py               ← Docker sandbox executor
-│   └── policy/
-│       └── policy_engine.py        ← YAML policy rule loader & evaluator
+├── .bob/
+│   └── mcp.json                        ← Registers the Tribunal MCP server with Bob
 │
-├── policies/
-│   ├── privacy_policy.md
-│   ├── security_policy.md
-│   └── policies.yaml               ← Machine-readable policy rules
-│
-├── templates/
-│   └── docket.md.j2                ← Tribunal Docket Jinja2 template
-│
-├── logs/                           ← Auto-generated audit logs (gitignored)
-│
-└── demo_repo/                      ← Intentionally defective target repo
-    ├── payment_gateway.py          ← BUG: unbounded loop + PII leak
-    ├── config.py                   ← BUG: hardcoded secret
-    ├── checkout_service.py
-    └── tests/
-        └── test_checkout.py        ← Failing tests that Bob must fix
+└── governance-tribunal/
+    ├── cli.py                          ← CLI entry point  (python cli.py investigate ./demo_repo)
+    ├── requirements.txt
+    ├── .env.example
+    │
+    ├── mcp_server/
+    │   └── tribunal_mcp_server.py      ← MCP server exposing 4 tools to Bob (stdio transport)
+    │
+    ├── src/
+    │   ├── orchestrator/
+    │   │   ├── tribunal.py             ← Master orchestrator — GovernanceTribunal class
+    │   │   ├── case_manager.py         ← Case state machine & data model (10 states)
+    │   │   └── classifier.py           ← Case type, severity & confidence scoring
+    │   ├── evidence/
+    │   │   └── collector.py            ← pytest runner, detect-secrets, PII scan, git blame
+    │   ├── validation/
+    │   │   └── dual_validator.py       ← Dual-validation engine (tests AND policy must pass)
+    │   ├── reporting/
+    │   │   └── docket_generator.py     ← Jinja2 Tribunal Docket renderer
+    │   └── ledger/
+    │       └── audit_ledger.py         ← Append-only JSONL audit log
+    │
+    ├── demo_repo/                      ← Intentionally defective target repository
+    │   ├── src/
+    │   │   ├── auth/login.py           ← DEFECT 2: PII leak — logs user.email in plain text
+    │   │   ├── checkout/service.py     ← DEFECT 1: unbounded retry loop  |  DEFECT 4: PII in retry
+    │   │   └── config.py              ← DEFECT 3: hardcoded AWS credentials
+    │   └── tests/
+    │       ├── test_login.py
+    │       └── test_checkout.py        ← test_checkout_timeout() will FAIL (hangs forever)
+    │
+    ├── policies/
+    │   ├── privacy-policy.md           ← Bob reads this to understand why PII logging is illegal
+    │   └── security-policy.md
+    │
+    ├── templates/
+    │   └── docket_template.md          ← Jinja2 template for the Tribunal Docket
+    │
+    └── logs/                           ← Auto-generated audit logs (gitignored)
 ```
 
 ---
 
 ## Quick Start
 
-### 1. Set Up Environment
+### 1. Install Dependencies
+
 ```bash
-cd "IBM Hackathon"
+cd "governance-tribunal"
 python3 -m venv venv
-source venv/bin/activate
+source venv/bin/activate        # Windows: .\venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 2. Run the Tribunal Against the Demo Repo
+### 2. Set Up the Demo Repo
+
+The demo repo needs at least one git commit so `git blame` has history to trace:
+
 ```bash
-python cli.py investigate ./demo_repo
+cd demo_repo
+git init && git add -A && git commit -m "Initial buggy commit"
+cd ..
 ```
 
-### 3. What You'll See
+### 3. Run the Investigation
+
+```bash
+python cli.py investigate ./demo_repo --max-retries 3
+```
+
+You'll see the Tribunal work through each phase in the terminal:
+
 ```
 ⚖️  THE GOVERNANCE TRIBUNAL  ⚖️
 Forensic Compliance & Regression Arbiter
 Powered by IBM Bob 2.0
 
-📋 Phase 1: Collecting Evidence...
-🔍 Phase 2: Classifying Case... [COMBINED — HIGH severity]
+📋 Phase 1: Collecting Evidence (The Subpoena)...
+🔍 Phase 2: Classifying Case...           [COMBINED — HIGH severity]
 ⚖️  Phase 3: Bob Investigating & Remediating...
 📄 Phase 4: Generating Tribunal Docket...
 👤 Phase 5: Human Approval Required
@@ -102,45 +117,96 @@ Do you approve this remediation? [y/N]
 
 ---
 
-## The Demo Case (Killer Scenario)
-
-The `demo_repo/` contains **3 intentional defects** layered together:
+## The Demo Case (4 Layered Defects)
 
 | # | Defect | File | Type |
 |:--|:--|:--|:--|
-| 1 | Unbounded retry loop → `TimeoutError` | `payment_gateway.py:43` | Functional Regression |
-| 2 | PII logged: `logger.info(user.email)` | `payment_gateway.py:12` | Privacy Violation |
-| 3 | Hardcoded secret: `API_KEY = "sk-abc123..."` | `config.py:2` | Security Violation |
+| 1 | Unbounded `while True:` retry loop → hangs forever when DB is down | `checkout/service.py` | Functional Regression |
+| 2 | `logger.info(f"User login attempt: {user.email}")` — PII in plain text | `auth/login.py` | Privacy Violation |
+| 3 | `AWS_ACCESS_KEY_ID = "AKIAIOSFODNN7EXAMPLE"` — hardcoded credential | `config.py` | Secret Violation |
+| 4 | `logger.info(f"Retrying checkout for {user.email}")` — PII in retry log | `checkout/service.py` | Combined (Functional + Policy) |
 
-**Bob fixes all three simultaneously** — bounded loop, LibCST email masking, `os.getenv` secret extraction — then validates with a 5-check Dual Validation suite.
+The Tribunal detects all four, generates a hypothesis for each, applies scripted fixes (mimicking what Bob writes), then runs Dual Validation to confirm all tests pass and all scanners are clean before issuing the Docket.
 
 ---
 
-## IBM Bob 2.0 Integration
+## IBM Bob 2.0 Integration (MCP)
 
-Bob operates in **Agent Mode** using these MCP tools:
+The file `.bob/mcp.json` at the workspace root registers a custom MCP server with Bob. When you open this folder in Bob, it automatically hot-loads the server.
 
-| Tool | Purpose |
+### MCP Tools Exposed to Bob
+
+| Tool | What Bob uses it for |
 |:--|:--|
-| `read_file` | Evidence collection |
-| `write_file` | Apply patches |
-| `run_shell` | Execute pytest, scanners |
-| `git_blame` | Root cause tracing |
-| `create_report` | Docket generation |
+| `git_blame` | Trace a failing line to its culprit commit + author + diff |
+| `run_tests` | Run pytest; get structured pass/fail counts and stack traces |
+| `run_scanners` | Run `detect-secrets` + PII regex; get combined findings JSON |
+| `write_file` | Apply a generated patch (sandboxed — cannot write outside the target repo) |
 
-Configure `.bob/mcp.json` to point to your MCP server, and run Bob in the IDE with the **"Forensic Compliance Arbiter"** system prompt from `governance_tribunal_research.md`.
+### How the Agentic Loop Works
+
+```
+Bob reads policies/privacy-policy.md
+        ↓
+Bob calls run_tests()  →  gets failing test + stack trace
+        ↓
+Bob calls git_blame()  →  finds culprit commit
+        ↓
+Bob reads the offending source file
+        ↓
+Bob calls write_file()  →  applies the fix
+        ↓
+Bob calls run_tests() + run_scanners()
+        ↓
+    Both pass?  →  Generate Docket  →  Human Approval
+    Either fails? → Read new errors → Self-correct → retry
+```
+
+The **Dual-Validation Engine** is Bob's adversary — Bob cannot skip it. A patch that fixes the failing test but leaks PII is rejected, and Bob must try again with a clean solution.
+
+### MCP Server Config (`.bob/mcp.json`)
+
+```json
+{
+  "mcpServers": {
+    "governance-tribunal": {
+      "command": "python3",
+      "args": ["${workspaceFolder}/governance-tribunal/mcp_server/tribunal_mcp_server.py"]
+    }
+  }
+}
+```
 
 ---
 
-## Key Innovation
+## Responsible AI Guardrails
 
-> The Tribunal is the **only hackathon entry that applies LibCST lossless AST transformations** for code repair, preserving comments, whitespace, and style — exactly as a senior engineer would review and merge a patch.
+| Guardrail | How It Works |
+|:--|:--|
+| **Human Approval Gate** | Any HIGH severity case or confidence < 0.75 requires explicit Y/N sign-off |
+| **Dual Validation** | Patches must pass tests AND policy scanners — Bob cannot self-approve |
+| **Immutable Audit Ledger** | Every state transition, hypothesis, and patch attempt is logged to `logs/{case_id}.jsonl` |
+| **Prompt Injection Defense** | Source code is passed to Bob in strict `<source_code>` XML tags; instructions inside are treated as data |
+| **Sandbox Writes** | `write_file` MCP tool refuses any path that escapes the target repo boundary |
+
+See [`docs/responsible-ai.md`](governance-tribunal/docs/responsible-ai.md) for the full framework.
 
 ---
 
-## Hackathon Submission
+## Architecture
 
-- **Prize Pool:** $10,000–$12,000
-- **Deadline:** Sept 27, 2026 @ 15:00 UTC
-- **Video:** 5-minute MP4 demo required
-- See `governance_tribunal_research.md` for full submission checklist
+The Tribunal is a **10-state deterministic state machine**:
+
+```
+TRIGGER_RECEIVED → EVIDENCE_COLLECTED → CASE_CLASSIFIED
+    → HYPOTHESES_GENERATED → ROOT_CAUSE_SELECTED
+    → PATCH_GENERATED → VALIDATION_EXECUTED
+    → VERDICT_GENERATED → HUMAN_APPROVAL
+    → CASE_CLOSED  (or ESCALATED on failure)
+```
+
+See [`docs/architecture.md`](governance-tribunal/docs/architecture.md) for the full Mermaid diagrams.
+
+---
+
+*Built for the IBM Bob 2.0 Hackathon (Sept 2026).*

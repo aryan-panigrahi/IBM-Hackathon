@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "governance-tribunal": {
+      "command": "python3",
+      "args": [
+        "${workspaceFolder}/governance-tribunal/mcp_server/tribunal_mcp_server.py"
+      ],
+      "env": {}
+    }
+  }
+}
