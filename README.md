@@ -333,6 +333,251 @@ on:
 
 ---
 
+## Phase Algorithms
+
+### Phase 1 — Evidence Collection (`EvidenceCollector.collect_all`)
+
+Runs **5 sub-algorithms** in sequence and bundles them into a single evidence dict.
+
+#### 1a. `run_tests()` — Functional Regression Scan
+```
+1. subprocess: pytest <tests_dir> --json-report
+2. IF json report exists:
+     Parse report.json → extract all tests where outcome == "failed"
+     For each failure: extract { test_id, file, line, message, longrepr }
+     Return { passed: returncode==0, failures: [...] }
+3. ELSE (fallback):
+     Regex match stdout for "FAILED tests/X::Y - Z" pattern
+     Return single failure entry
+```
+
+#### 1b. `run_secret_scan()` — Hardcoded Credential Detection
+```
+1. subprocess: detect-secrets scan <repo_path> → parse JSON results dict
+2. Walk all .py files (skip .git / venv / __pycache__):
+     For each line, apply regex patterns:
+       - API_KEY\s*=\s*["'][^"']{8,}["']  → "Hardcoded API Key"
+       - AWS_ACCESS_KEY_ID\s*=\s*[...]     → "AWS Secret Key"
+       - DB_PASSWORD\s*=\s*[...]           → "Database Password"
+     Skip lines containing os.getenv (already safe)
+3. Merge detect-secrets findings + regex findings
+4. Return { passed: findings==empty, findings: {...} }
+```
+
+#### 1c. `run_pii_scan()` — Privacy / GDPR Logging Scan
+```
+1. Walk all .py files
+2. For each line:
+     IF ("logger." in line OR "print(" in line)
+     AND NOT ("mask_email" in line OR "mask_card" in line):
+       Apply 4 PII regex patterns:
+         Email:       [a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[...]
+         Email_Var:   user\.email | user_email | \.email
+         Card_Number: card\.number | card_number | credit_card
+         SSN:         \b\d{3}-\d{2}-\d{4}\b
+       On first match: record { file, line, type, content }
+3. Return { passed: findings==empty, findings: [...] }
+```
+
+#### 1d. `run_security_scan()` — Bandit SAST
+```
+1. subprocess: bandit -r <repo_path> -f json
+2. Filter results where issue_severity == "HIGH"
+3. Return { passed: high_findings==empty, findings, total_issues }
+```
+
+#### 1e. `blame_line()` — Git Forensics
+```
+1. git.repo.blame("HEAD", <file>)
+2. Walk blame hunks: find which commit owns the failing line_num
+3. If commit has parents: get the diff for that file from parent→commit
+4. Return { commit, author, date, message, diff }
+```
+
+---
+
+### Phase 2 — Classification (`classify_case` + `compute_confidence`)
+
+#### 2a. Case Type Classification
+```
+tests_failed  = NOT evidence.test_results.passed
+secrets_found = NOT evidence.secret_scan.passed
+pii_found     = NOT evidence.pii_scan.passed
+policy_failed = secrets_found OR pii_found
+
+IF tests_failed AND policy_failed → COMBINED
+ELIF tests_failed                 → FUNCTIONAL
+ELIF policy_failed                → POLICY
+ELSE                              → UNKNOWN
+```
+
+#### 2b. Severity Scoring
+```
+Default severity = MEDIUM
+
+IF secrets_found: severity = HIGH
+
+FOR each changed_file in evidence.changed_files:
+  IF any of ["auth","login","payment","checkout","crypto","secret","config"]
+     is a substring of file name (case-insensitive):
+       severity = HIGH; break
+
+Return (case_type, severity)
+```
+
+#### 2c. Confidence Score Computation
+```
+score = 0.0
+score += 0.40   if reproduction_success (test actually failed)
+score += 0.25   if recent_commits exist
+score += 0.15   if stack trace points to specific file/line
+score += 0.10   if PII or secret violation found (policy match)
+score += 0.10   baseline calibration (always)
+
+Return min(score, 1.0) rounded to 2dp
+```
+
+Maximum achievable confidence score: **1.0** (all signals present).
+
+---
+
+### Phase 3 — Agentic Remediation Loop
+
+This is the core self-correcting loop in `GovernanceTribunal.run_remediation_loop()`.
+
+```
+FOR attempt in range(max_retries):              ← default: 2 retries
+
+  ── AI Agent Call ──────────────────────────────────────────────────────
+  investigation = agent.investigate(evidence, policies)
+    │  Sends structured prompt:
+    │    - failing test IDs, file, line, 500-char traceback
+    │    - hardcoded secret locations
+    │    - PII violation locations
+    │    - last 3 git commits
+    │    - first 2 policy files (800 chars each)
+    │  Receives strict JSON:
+    │    { root_cause, patch_hunks[], parole_conditions, residual_risks }
+    └─ ON (ConnectionError / TimeoutError / Exception):
+         Fall back to deterministic scripted patch
+
+  ── Patch Application ──────────────────────────────────────────────────
+  FOR each hunk in investigation.patch_hunks:
+    1. Read full file from disk
+    2. IF original_snippet found verbatim → replace with fixed_snippet (1st occurrence)
+       ELSE try whitespace-normalised regex match, then replace
+    3. IF file changed: write to disk, generate unified diff
+
+  ── CST Safety Pass ────────────────────────────────────────────────────
+  FOR each .py file in repo:
+    Apply MaskEmailTransformer  (LibCST)   — wraps PII in logger calls
+    Apply HardcodedSecretTransformer (LibCST) — replaces string literals with os.getenv()
+    IF changed: write to disk, append to diff
+
+  ── Dual Validation Gate (5 checks, ALL must pass) ─────────────────────
+  [1] syntax     = ast.parse() every .py file
+  [2] functional = pytest full test suite
+  [3] secrets    = detect-secrets + API_KEY regex scan
+  [4] pii        = logger.*/print() + PII regex scan
+  [5] security   = bandit -r (HIGH severity findings only)
+
+  IF all 5 PASS:
+    verdict = "GUILTY. REMEDIATED. READY FOR MERGE."
+    return result                            ← EXIT LOOP ✓
+
+  ELSE:
+    Collect { functional_errors, syntax_errors, policy_errors }
+    Inject → evidence["_last_validation_errors"]   ← agent sees on next attempt
+
+── Max retries exhausted ──────────────────────────────────────────────────
+verdict = "COULD NOT FULLY REMEDIATE. ESCALATED TO LEAD ENGINEER."
+status  = ESCALATED
+```
+
+#### 3a. LibCST Transformers
+
+**`MaskEmailTransformer`**
+```
+Match:     logger.info( <expr containing "email"> )
+           where "mask_email" is NOT already in the expression
+Transform: logger.info( mask_email(<original_expr>) )
+```
+
+**`HardcodedSecretTransformer`**
+```
+Match:     API_KEY = "sk-..."   (SimpleString assigned to a known sensitive variable)
+Transform: API_KEY = os.getenv('API_KEY')
+```
+
+Fallback when LibCST is not installed: equivalent regex substitutions on raw source text.
+
+---
+
+### Phase 4 — Docket Generation
+
+```
+1. Render Jinja2 template (templates/docket.md.j2) with:
+     case_id, severity, case_type, confidence_score,
+     suspect (git blame result), root_cause, unified patch diff,
+     5-row validation summary table, parole_conditions,
+     residual_risks, UTC timestamp
+2. Write rendered Markdown → logs/<case_id>_docket.md
+```
+
+---
+
+### Phase 5 — Human Approval Gate
+
+```
+Triggered when: severity == HIGH   OR   confidence_score < 0.75
+
+Display: confidence score, severity, docket summary
+Prompt:  "Do you approve this remediation? [y/N]"
+  y → status = CASE_CLOSED,   human_approved = True
+  N → status = ESCALATED,     human_approved = False
+
+CI/CD mode (--non-interactive): auto-approve, gate is bypassed
+```
+
+---
+
+### Phase 6 — Immutable Audit Ledger
+
+```
+Every state transition appends one JSON line to logs/<case_id>.jsonl:
+  {
+    "timestamp": "<ISO-8601 UTC>",
+    "case_id":   "GT-YYYYMMDD-XXXX",
+    "event":     "evidence_collected" | "patch_attempt" | "validation_result" | ...,
+    "details":   { <event-specific payload> }
+  }
+File is opened in append ("a") mode — existing entries are never modified.
+
+On case close:
+  Full case dict (evidence + history + verdict + patches)
+  → logs/<case_id>_full.json
+```
+
+---
+
+### State Machine (12 States)
+
+```
+TRIGGER_RECEIVED
+  → EVIDENCE_COLLECTED
+    → CASE_CLASSIFIED
+      → ROOT_CAUSE_SELECTED
+        → PATCH_GENERATED ─────────────────────────────────┐
+          → VALIDATION_EXECUTED                             │ retry
+               PASS → VERDICT_GENERATED                    │
+                         → HUMAN_APPROVAL                  │
+                           → CASE_CLOSED                   │
+               FAIL ───────────────────────────────────────┘
+                    → (max retries exhausted) → ESCALATED
+```
+
+---
+
 ## Future Improvements
 
 - GitHub PR creation after approved remediation (PyGithub integration stub already in `requirements.txt`)
