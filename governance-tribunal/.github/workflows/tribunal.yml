@@ -1,0 +1,46 @@
+name: Governance Tribunal
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  tribunal:
+    name: ⚖️ Forensic Compliance & Regression Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history required for git blame
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          cd governance-tribunal
+          pip install -r requirements.txt
+
+      - name: Run The Governance Tribunal
+        # --non-interactive skips the Y/N prompt; CI auto-approves on success
+        run: |
+          cd governance-tribunal
+          python cli.py investigate ./demo_repo --max-retries 2
+        env:
+          # Secrets are injected from GitHub repository secrets — never hardcoded
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Upload Tribunal Docket
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tribunal-docket
+          path: governance-tribunal/logs/
+          retention-days: 30

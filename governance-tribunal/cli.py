@@ -103,6 +103,9 @@ def investigate(
     max_retries: int = typer.Option(
         2, help="Maximum patch retry attempts before escalation"
     ),
+    non_interactive: bool = typer.Option(
+        False, "--non-interactive", help="Skip human approval prompt (for CI/CD use)"
+    ),
 ):
     """🏛️ Investigate a repository for functional regressions and policy violations."""
     print_banner()
@@ -164,18 +167,25 @@ def investigate(
     console.print(f"  Severity: [bold]{case.severity.value.upper()}[/bold]")
     console.print()
 
-    approved = typer.confirm("Do you approve this remediation?")
-
-    if approved:
+    if non_interactive:
+        approved = result.get("verdict", "").startswith("GUILTY")
+        status = "AUTO-APPROVED (CI mode)" if approved else "AUTO-REJECTED (remediation failed)"
         console.print(Panel(
-            "[bold green]✅ VERDICT APPROVED\nPatch accepted. Case closed.[/bold green]",
-            border_style="green",
+            f"[bold yellow]🤖 {status}[/bold yellow]",
+            border_style="yellow",
         ))
     else:
-        console.print(Panel(
-            "[bold red]❌ VERDICT REJECTED\nPatch discarded. Escalating to human engineer.[/bold red]",
-            border_style="red",
-        ))
+        approved = typer.confirm("Do you approve this remediation?")
+        if approved:
+            console.print(Panel(
+                "[bold green]✅ VERDICT APPROVED\nPatch accepted. Case closed.[/bold green]",
+                border_style="green",
+            ))
+        else:
+            console.print(Panel(
+                "[bold red]❌ VERDICT REJECTED\nPatch discarded. Escalating to human engineer.[/bold red]",
+                border_style="red",
+            ))
 
     # Save audit log
     tribunal.save_audit_log(case, result, approved)
